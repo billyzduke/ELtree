@@ -6,6 +6,7 @@ let startingHorizLen = 214;
 let wireSpacing = 2; 
 let bundleTightness = 0.2; 
 let splayInward = true; 
+let showBerries = true; 
 
 let allWires = [];
 let lengthVariations = []; 
@@ -21,7 +22,7 @@ function setup() {
   strokeWeight(1.5);
   noFill();
   
-  randomSeed(16); // Updated seed
+  randomSeed(16); 
   
   for (let i = 0; i < 1000; i++) {
     lengthVariations.push(random(0.5, 1.5)); 
@@ -131,10 +132,9 @@ function calculateCoilPath(wireIndex) {
 
     let isFinalLevel = (d === splits.length - 1);
     let isSpine = (isFinalLevel && localBranch === 6);
-    
-    // UPDATED: finalSquash reduced to 0.3 to make berry stems shorter
     let finalSquash = isFinalLevel ? 0.3 : 1.0; 
 
+    // Restore the angle calculation logic
     let angleOffset = 0;
     if (numSplits === 7) {
       angleOffset = (TWO_PI * localBranch) / 6;
@@ -156,7 +156,8 @@ function calculateCoilPath(wireIndex) {
     if (isSpine) {
       let spineLen = currentVertLen * lengthMod * roundnessMod * finalSquash; 
       let spinePos = p5.Vector.add(currentPos, createVector(0, 0, spineLen));
-      points.push(p5.Vector.add(spinePos, physicalOffset));
+      let spineOffset = isFinalLevel ? createVector(0, 0, 0) : physicalOffset;
+      points.push(p5.Vector.add(spinePos, spineOffset));
       currentPos = spinePos.copy();
     } else {
       let branchAngle = currentAngle + angleOffset;
@@ -184,11 +185,15 @@ function calculateCoilPath(wireIndex) {
       let lon = physicalOffset.x * cos(branchAngle) + physicalOffset.y * sin(branchAngle);
       let rotatedOffset = createVector(lat * perpX, lat * perpY, lon);
 
+      // Terminal Centering Logic: Final tier horizontal branches are centered
+      let currentDrawOffset = isFinalLevel ? createVector(0, 0, 0) : physicalOffset;
+      let currentRotatedOffset = isFinalLevel ? createVector(0, 0, 0) : rotatedOffset;
+
       points.push(p5.Vector.add(currentPos, physicalOffset));
-      points.push(p5.Vector.add(currentPos, rotatedOffset)); 
-      points.push(p5.Vector.add(elbowPos, rotatedOffset));
-      points.push(p5.Vector.add(elbowPos, physicalOffset));
-      points.push(p5.Vector.add(fingerPos, physicalOffset));
+      points.push(p5.Vector.add(currentPos, currentRotatedOffset)); 
+      points.push(p5.Vector.add(elbowPos, currentRotatedOffset));
+      points.push(p5.Vector.add(elbowPos, currentDrawOffset));
+      points.push(p5.Vector.add(fingerPos, currentDrawOffset));
 
       currentPos = fingerPos.copy();
       currentAngle = branchAngle; 
@@ -197,17 +202,18 @@ function calculateCoilPath(wireIndex) {
     currentVertLen *= 1.14;  
   }
 
-  // BERRY SPIRAL
-  let berryRadius = 4.2; 
-  let segments = 24;   
-  let turns = 3;       
-  for (let i = 0; i <= segments; i++) {
-    let lat = map(i, 0, segments, -HALF_PI, HALF_PI); 
-    let lon = map(i, 0, segments, 0, TWO_PI * turns); 
-    let x = berryRadius * cos(lat) * cos(lon + wireIndex); 
-    let y = berryRadius * cos(lat) * sin(lon + wireIndex);
-    let z = berryRadius * sin(lat) + berryRadius; 
-    points.push(p5.Vector.add(currentPos, createVector(x, y, z)));
+  if (showBerries) {
+    let berryRadius = 4.2; 
+    let segments = 64;   
+    let turns = 6;       
+    for (let i = 0; i <= segments; i++) {
+      let lat = map(i, 0, segments, -HALF_PI, HALF_PI); 
+      let lon = map(i, 0, segments, 0, TWO_PI * turns); 
+      let x = berryRadius * cos(lat) * cos(lon + wireIndex); 
+      let y = berryRadius * cos(lat) * sin(lon + wireIndex);
+      let z = berryRadius * sin(lat); 
+      points.push(p5.Vector.add(currentPos, createVector(x, y, z)));
+    }
   }
 
   return points;
